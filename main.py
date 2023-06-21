@@ -130,7 +130,13 @@
 from scenario import scenario
 
 if __name__ == '__main__':
-    print("hello")
+    print("SCENARIO 1")
+    gROP = 7.75
+    rLiquid = 700
+    gFormInfluxeRate = 0.9
+    rAir = 2000
+    gPS = 14.7
+
     sc = scenario()
-    sc.cal_P_static()
+    sc.cal_P_static(gROP, rLiquid, gFormInfluxeRate, rAir, gPS)
     print("static ", sc.rSP)
