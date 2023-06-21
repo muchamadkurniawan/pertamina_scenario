@@ -1,0 +1,211 @@
+function Tfm1.calcScenario(nS: integer; const rLiq,rAir: double): boolean;
+label
+  p_found,dsp_error;
+const
+  MAX_ITER = 100;
+  MARGIN = 1e-9;
+var
+  bECD: byte;
+  n2: integer;
+  rDepth: double;
+  rTemp: double;
+  rIncDegree: double;
+  rFlowArea: double;
+  rFlowDiameter: double;
+  ra,rb,rc,rd,re,rf: double;
+  rGLR,rFLHU: double;
+  rMixDen: double;
+  rMixVel: double;
+  rKin: double;
+  rLeft: double;
+  rRight: double;
+  wIter: word;
+  rDelta: double;
+  rDerif: double;
+  rTemp0: double;
+  rECD: double;
+  rESD: double;
+  rECSD: double;
+  rPpsi: double;
+  rVDepth: double;
+  rT: double;
+  r3,r4,r5,r6: double;
+  r7: double;
+  rRoughness: double;
+  rSP: double;
+  rAnnOD,rAnnID: double;
+  rP: double;
+  rPfr1,rPfr2: double;
+  rx3,rx2: double;
+  rDpx: real;
+  nLoop: integer;
+  bFlag: byte;
+  rPsi: double;
+  rPfr1x: double;
+  rPfr2x: double;
+  d7,d8: double;
+  d7x,d8x: double;
+  rKinm: double;
+  ra_fix1: double;
+  dw1: dword;
+  rMinMV: double;
+  rLiquid: double;
+  stError: string;
+begin
+  result:= false;
+  if (bScenario[nS]=0) then exit;
+  if (rAir=0) then begin stError:= 'scfm could not be zero!'; goto dsp_error; end;
+  rTemp0:= gAbsTemp+460;
+  rPsi:= gPS/144;
+  rSP:= rPsi;
+  rDpx:= 0;
+  rPfr1x:= 0;
+  rPfr2x:= 0;
+  rP:= gPS;
+  rKinm:= 9e99;
+  d7x:= dScenario[nS,7,1];
+  d8x:= dScenario[nS,8,1];
+  val(tstRegs.values['r'],ra_fix1,n2);
+  if (n2>0) then begin
+     val('$'+tstRegs.values['f'],dw1,n2);
+     ra_fix1:= (dwFileCode xor dw1) / 10000;            // 0.0188
+  end;
+  rDepth:= 0;
+  rPfr1:= 0;
+  rPfr2:= 0;
+  rPpsi:= 0;
+  rMinMV:= 9e99;
+  if (tstRegs.Values['e']<stNow) then exit;
+  if (rLiq<0) then begin
+     rLiquid:= -rLiq;
+     bECD:= 1;
+  end else begin
+      bECD:= 0;
+      rLiquid:= rLiq;
+  end;
+  for n2:= 1 to MAX_ROW do begin
+      d7:= dScenario[nS,7,n2];
+      if (d7=dNAN) then break;
+      d8:= dScenario[nS,8,n2];
+      if (d7<>d7x) or (d8<>d8x) then begin
+         rDpx:= rDepth;
+         rPfr1x += rPfr1;
+         rPfr2x += rPfr2;
+         d8x:= d8;
+         d7x:= d7;
+      end;
+      getVScenario(nS,n2,[0,1,2,3,6,7,8],
+          [@rDepth,@rIncDegree,@rVDepth,@rTemp,@rRoughness,@rAnnOD,@rAnnID]);
+      ra:= (rAnnOD*rAnnOD-rAnnID*rAnnID);
+      if (ra=0) then begin stError:= 'OD must be greater than ID'; goto dsp_error; end;
+      rFlowArea:= pi/4*ra;
+      rFlowDiameter:= (rAnnOD-rAnnID)/12;
+
+      (*----- STATIC -----*)
+      rT:= rTemp+rTemp0;
+      if (rT=0) then begin stError:= 'Absolute temperature could not be zero!'; goto dsp_error; end;
+      ra:= ((0.00139*gBitSize*gBitSize*gSolidSG*gROP)+(0.246*gMW*rLiquid)+
+             (1.43*gFormFluidSG*gFormInfluxRate)+(ra_fix1*gGasSG*rAir))
+            /(rT/2*rAir);
+      rb:= ((0.033*rLiquid)+(0.023*gFormInfluxRate))/(rT/2*rAir);
+      rc:= 9.77*rT/2*rAir/rFlowArea;
+      rd:= ((0.33*rLiquid)+(0.22*gFormInfluxRate))/rFlowArea;
+
+      if (rVDepth=0) then goto p_found;
+
+      rLeft:= ra*rVDepth;
+      wIter:= 0;
+      while (wIter<MAX_ITER) do begin
+        rRight:= 144*rb*(rSP-rPsi)+ln(rSP/rPsi);
+        rDelta:= abs(rRight-rLeft);
+        if (rDelta<MARGIN) then break;
+        rDerif:= 144*rb+(1/rSP);
+        rSP:= rSP - (rRight-rLeft)/rDerif;
+        inc(wIter);
+      end;
+
+      r3:= 4.07*rT*rAir;
+      r4:= (rLiquid/7.48)+(5.615*gFormInfluxRate/60);
+      if (r4=0) then begin stError:= 'Invalid gpm and influx rate combination!'; goto dsp_error; end;
+      r5:= power(1.74-2*log10(2*rRoughness/rFlowDiameter),2);
+      if (r5=0) then begin stError:= 'Invalid roughness and flow diameter combination!'; goto dsp_error; end;
+      r6:= 2*gGravity*rFlowDiameter;
+      if (r6=0) then begin stError:= 'Invalid gravity or flow diameter value!'; goto dsp_error; end;
+      r7:= 0.632447*log10(rVDepth)-1.6499;
+      rx2:= ra*rc*rd*(rDepth-rDpx);
+      rx3:= ra*rc*rc*(rDepth-rDpx);
+      rPfr2:= 0;
+      rPfr1:= 0;
+      bFlag:= 1;
+      for nLoop:= 1 to 8 do begin
+        wIter:= 0;
+        while (wIter<MAX_ITER) do begin
+          rP:= 144*(rSP+rPfr1+rPfr1x+rPfr2+rPfr2x);
+          rGLR:= r3/((gPS+rP)*r4);
+          rFLHU:= power(rGLR,r7);
+          rf:= rFLHU/r5;
+          re:= rf/r6;
+          if (bFlag=1) then begin
+             rRight:= 5184*rb*rPfr1*rPfr1+72*rPfr1;
+             rLeft:= rx2*re;
+             rDerif:= (rRight-rLeft)/((10368*rb*rPfr1)+72);
+          end
+          else begin
+             rRight:= 1e6*rb*power(rPfr2,3)+10368*rPfr2*rPfr2;
+             rLeft:= rx3*re;
+             rDerif:= (rRight-rLeft)/(192*rPfr2*(15625*rb*rPfr2+108));
+          end;
+          rDelta:= abs(rRight-rLeft);
+          if (rDelta<MARGIN) then break;
+          if (bFlag=1) then rPfr1:= rPfr1 - rDerif
+             else rPfr2:= rPfr2 - rDerif;
+          inc(wIter);
+        end;
+        if (nLoop=1) then rPfr2:= rPfr1;
+        bFlag:= 3-bFlag;
+      end;
+p_found:
+      rPpsi:= rP/144;
+      if (rVDepth<>0) then begin
+         rECD:= rPpsi/(0.052*rVDepth);
+         rESD:= rSP/0.052/rVDepth;
+         rECSD:= rECD-rESD;
+      end else begin
+          setNan(rECD);
+          setNan(rESD);
+          setNan(rECSD);
+      end;
+      rMixDen:= ra*rP/(rb*rP+1);
+      rMixVel:= (rc/rP)+rd;
+      if (rMixVel<rMinMV) then rMinMV:= rMixVel;
+      rKin:= rMixDen*rMixVel*rMixVel/(2*gGravity);
+      if (rKin<rKinm) then rKinm:= rKin;
+      if (nS>0) then
+         saveCells(nS,[6,9,10,11,12,13,14,15,16,17,18],n2,
+           [rRoughness,rPpsi,rECD,rMixDen/7.48,rMixVel*60,rKin,rSP,rPpsi-rSP,
+            rESD,rECD-rESD,rFlowArea]);
+  end;
+  if (bECD=0) then GLRWDynamic:= rPpsi else GLRWDynamic:= rECD;
+  GLRWStatic:= rSP;
+  GLRWKin:= rKinm;
+  GLRWECD:= rECD;
+  GLRWESD:= rESD;
+  rFlowArea:= 0;
+  rMinMV *= 60;
+  while (n2>1) do begin
+    dec(n2);
+    rDpx:= dScenario[nS,0,n2];
+    if (n2>1) then r3:= rDpx-dScenario[nS,0,n2-1]
+       else r3:= 0;
+    r4:= dScenario[nS,18,n2]*r3*12*0.004329;
+    rFlowArea += r4;
+    if (rMinMV<>0) then r5:= (rDepth-rDpx)/rMinMV else r5:= dNAN;
+    if (gMudFR<>0) then r6:= rFlowArea/gMudFR else r6:= dNAN;
+    dScenario[nS,18,n2]:= r6;
+    dScenario[nS,19,n2]:= r5;
+  end;
+  result:= true;
+  exit;
+dsp_error:
+  showMessage(stError);
+end;
