@@ -1,5 +1,7 @@
 import math
 
+import numpy as np
+import pandas as pd
 
 class scenario:
     gBitSize = 9.875
@@ -10,10 +12,11 @@ class scenario:
     gGasSG = 1
     TempAbs = 80
     gTempGrad = 0.06
-    incDeg = [0, 0.38, 0.32, 0.28, 0.76, 1.53]
-    rVDepth = [0, 205.71, 288.62, 378.84, 407.7]
-    rMDepth = [0, 205.71, 288.62, 378.84, 407.7]
+    # incDeg = [0, 0.38, 0.32, 0.28, 0.76, 1.53]
+    # rVDepth = [0, 205.71, 288.62, 378.84, 407.7]
+    # rMDepth = [0, 205.71, 288.62, 378.84, 407.7]
     # Temp = [540, 552.3425, 557.3171, 562.73303, 568.2418]
+    rVDepth = []
     Temp = []
     rSP = []
     rPpsi = []
@@ -23,6 +26,11 @@ class scenario:
     rAnnID = 5.00
     MAX_ITER = 100
     MARGIN = 1e-9
+
+    def __init__(self):
+        df = pd.read_excel(open('dataset.xlsx', 'rb'))
+        self.rVDepth = np.array(pd.DataFrame(df, columns=(['ftTVD'])))
+        print(self.rVDepth)
 
     def cal_Temperatur(self, AbsTemp):
         MAX_ROW = len(self.rVDepth)
