@@ -1,5 +1,5 @@
 import math
-from matplotlib import pyplot as plt
+
 
 class scenario:
     MAX_ROW = 1000
@@ -16,6 +16,7 @@ class scenario:
     Temp = []
     rSP = []
     rPpsi = []
+    ftTVD = []
     # rPpsi = [14.7, 30.215, 36.337, 42.995, 49.805]
     rRoughness = 0.0018
     gGravity = 32.17405
@@ -23,58 +24,42 @@ class scenario:
     rAnnID = 5.00
     MAX_ITER = 100
     MARGIN = 1e-9
-    MAX_ROWs = 1000
-    MAX_ROW = 0
-    rVDepth = []
-    EMW = []
-    scECD = []
-    scVDepth = []
-    scMDepth = list(range(1,10000))
-    scTEMP = []
+    MAX_ROW = 1000
 
-    def __init__(self, IncDeg=None, MDepth=None, VDepth=None, EMW = None):
-        self.MAX_ROW = len(self.rMDepth)
-        if IncDeg is None:
-            self.incDeg = [0, 0.38, 0.32, 0.28, 0.76, 1.53]
-        else:
-            self.incDeg = IncDeg
-
-        if MDepth is None:
-            self.rMDepth = [0, 205.71, 288.62, 378.84, 470.69]
-        else:
-            self.rMDepth = MDepth
-
+    def __init__(self, IncDeg=None, MDepth=None, VDepth=None):
+        pass
+        # if IncDeg is None:
+        #     self.incDeg = [0, 0.38, 0.32, 0.28, 0.76, 1.53]
+        # else:
+        #     self.incDeg = IncDeg
+        #
+        # if MDepth is None:
+        #     self.rMDepth = [0, 205.71, 288.62, 378.84, 470.69]
+        # else:
+        #     self.rMDepth = MDepth
+        #
         # if VDepth is None:
         #     self.rVDepth = self.calc_rVDepth()
         # else:
         #     self.rVDepth = VDepth
 
-        if EMW is None:
-            self.EMW = []
-        else:
-            self.EMW = EMW
-    def cal_scECD(self):
+    def cel_ftTVD(self):
+        n = len(self.rMDepth)
+        rVx = 0
+        rDx = 0
+        for i in range (n):
+            if i == 0 :
+                self.ftTVD.append(self.rMDepth[i])
+            else:
+                rD = self.rMDepth[i]
+                rV = (rD-rDx)*math.cos(math.radians())
+
+    def cal_MDepth(self):
         pass
-    # def cal_scTemperature(self, AbsTemp):
-    #     temperatur = []
-    #     for i in range(10000):
-    #         try:
-    #             if i == 0:
-    #                 temperatur.append(460 + AbsTemp)
-    #             else:
-    #                 tempe1 = self.rMDepth[i] - self.rMDepth[i - 1]
-    #                 tempe2 = math.cos(
-    #                     math.radians((self.incDeg[i] + self.incDeg[i - 1]) / 2)
-    #                 )
-    #                 tempe3 = tempe1 * tempe2 + self.rVDepth[i - 1]
-    #                 tempe4 = tempe3 * self.gTempGrad + 540
-    #                 temperatur.append(round(tempe4, 2))
-    #         except:
-    #             break
-    #     self.scTEMP = temperatur
+
     def calc_rVDepth(self):
         results = []
-        for i in range(len(self.rMDepth)):
+        for i in range(self.MAX_ROW):
             try:
                 if i == 0:
                     results.append(round(self.rMDepth[i], 2))
@@ -88,29 +73,32 @@ class scenario:
             except:
                 break
 
-        self.rVDepth = results
+        return results
 
     def cal_Temperatur(self, AbsTemp):
-        temp = []
-        for i in range(len(self.rMDepth)):
-            if i == 0:
-                temp.append(460 + AbsTemp)
-            else:
-                tempe1 = self.rMDepth[i] - self.rMDepth[i - 1]
-                tempe2 = math.cos(
-                    math.radians((self.incDeg[i] + self.incDeg[i - 1]) / 2)
-                )
-                tempe3 = tempe1 * tempe2 + self.rVDepth[i - 1]
-                tempe4 = tempe3 * self.gTempGrad + 540
-                temp.append(round(tempe4, 2))
-        self.Temp = temp
+        temperatur = []
+        for i in range(self.MAX_ROW):
+            try:
+                if i == 0:
+                    temperatur.append(460 + AbsTemp)
+                else:
+                    tempe1 = self.rMDepth[i] - self.rMDepth[i - 1]
+                    tempe2 = math.cos(
+                        math.radians((self.incDeg[i] + self.incDeg[i - 1]) / 2)
+                    )
+                    tempe3 = tempe1 * tempe2 + self.rVDepth[i - 1]
+                    tempe4 = tempe3 * self.gTempGrad + 540
+                    temperatur.append(round(tempe4, 2))
+            except:
+                break
+        self.Temp = temperatur
 
     def cal_P_static(self, gROP, rLiquid, gFormInfluxRate, rAir, gPS):
         gPS = gPS * 144
         rPsi = gPS / 144
         rSP = rPsi
         tempRsp = []
-        for n2 in range(0, len(self.rMDepth)):
+        for n2 in range(0, self.MAX_ROW):
             try:
                 rT = self.Temp[0] + self.Temp[n2]
                 ra = (
@@ -153,7 +141,7 @@ class scenario:
         rPpsi = 0
         temp0 = self.TempAbs + 460
 
-        for i in range(len(self.rMDepth)):
+        for i in range(self.MAX_ROW):
             try:
                 rDepth = self.rMDepth[i]
                 rT = temp0 + self.Temp[i]
@@ -234,7 +222,7 @@ class scenario:
 
     def cal_ECD(self):
         rECD = []
-        for i in range(len(self.rMDepth)):
+        for i in range(self.MAX_ROW):
             try:
                 if self.rVDepth[i] == 0:
                     rECD.append(0)
@@ -244,10 +232,3 @@ class scenario:
             except:
                 break
         return rECD
-
-    def plot_pore_pressure(self):
-        y = self.rMDepth
-        x = self.EMW
-        plt.plot(x,y)
-        plt.ylim((max(y),min(y)))
-        plt.show()
