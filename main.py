@@ -26,14 +26,14 @@ if __name__ == '__main__':
     sc = scenario(MDepth=mDepth, IncDeg=incDeg)
 
     sc.calc_rVDepth()
-    # sc.cal_Temperatur(gTemp)
+    sc.cal_Temperatur(gTemp)
     # sc.cal_P_static(gROP, rLiquid, gFormInfluxeRate, rAir, gPS)
     # sc.cal_p_dynamic(gROP, rLiquid, gFormInfluxeRate, rAir, gPS)
     # ECD = sc.cal_ECD()
 
     print("MDVepth       :", sc.rVDepth)
     # print("IncDeg       :", sc.incDeg)
-    # print("Temperature  :", sc.Temp)
+    print("Temperature  :", sc.Temp)
     # print("ftTVD        :", sc.rVDepth)
     # print("P static     :", sc.rSP)
     # print("P Dynamic    :", sc.rPpsi)
