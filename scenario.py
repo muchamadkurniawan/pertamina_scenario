@@ -73,22 +73,27 @@ class scenario:
     #             break
     #     self.scTEMP = temperatur
     def calc_rVDepth(self):
-        results = []
-        for i in range(len(self.rMDepth)):
-            try:
-                if i == 0:
-                    results.append(round(self.rMDepth[i], 2))
-                else:
-                    diff_MDepth = self.rMDepth[i] - self.rMDepth[i - 1]
-                    IncRad = ((self.incDeg[i] + self.incDeg[i - 1]) / 2) * (
-                        math.pi / 180
-                    )
-                    VDepth = diff_MDepth * math.cos(IncRad) + results[i - 1]
-                    results.append(round(VDepth, 2))
-            except:
-                break
-
-        self.rVDepth = results
+        for i in range(len(self.rMDepth)-1):
+            if i == 0:
+                self.rVDepth.append(0)
+            else:
+                rI = self.incDeg[i + 1]
+                rIx = self.incDeg[i]
+                selisih = self.rMDepth[i]-self.rMDepth[i-1]
+                IncRad = round(math.cos(math.radians((rI+rIx)/2)), 2)
+                # print("self.rMDepth[i] : ",self.rMDepth[i])
+                # print("self.rMDepth[i-1] : ", self.rMDepth[i-1])
+                # print("self.rVDepth[i-1] : ", self.rVDepth[i - 1])
+                Vdepth = (self.rMDepth[i]-self.rMDepth[i-1])*IncRad+self.rVDepth[i-1]
+                print("INC RAD :",IncRad)
+                print("Vdepth -1 ", self.rVDepth[i-1])
+                self.rVDepth.append(Vdepth)
+                print("selisih : ", selisih)
+                print("")
+        rI = 0
+        rIx = self.incDeg[len(self.rMDepth)-1]
+        # IncRad = round(math.cos(math.radians((rI + rIx) / 2)), 2)
+        print("baru :", IncRad)
 
     def cal_Temperatur(self, AbsTemp):
         temp = []
